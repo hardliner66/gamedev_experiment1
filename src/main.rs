@@ -1,4 +1,5 @@
 use notan::draw::*;
+use notan::math::Vec2;
 use notan::prelude::*;
 
 const MOVE_SPEED: f32 = 100.0;
@@ -9,6 +10,7 @@ struct State {
     x: f32,
     y: f32,
     last_key: Option<KeyCode>,
+    last_touch: Option<(f32, f32)>,
 }
 
 #[notan_main]
@@ -30,11 +32,26 @@ fn setup(gfx: &mut Graphics) -> State {
         x: 400.0,
         y: 300.0,
         last_key: None,
+        last_touch: None,
     }
 }
 
 fn update(app: &mut App, state: &mut State) {
     state.last_key = app.keyboard.last_key_released();
+
+    let mut current_touch = None;
+    app.touch.down.iter().for_each(|(&index, _)| {
+        if current_touch.is_none() {
+            if let Some((x, y)) = app.touch.position(index) {
+                current_touch = Some((x, y));
+            }
+        }
+    });
+
+    if let (Some((x_old, y_old)), Some((x, y))) = (state.last_touch, current_touch) {
+        state.x = (x - x_old) * MOVE_SPEED * app.timer.delta_f32();
+        state.y = (y - y_old) * MOVE_SPEED * app.timer.delta_f32();
+    }
 
     if app.keyboard.is_down(KeyCode::W) {
         state.y -= MOVE_SPEED * app.timer.delta_f32();
