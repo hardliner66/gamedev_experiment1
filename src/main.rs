@@ -1,5 +1,5 @@
 use notan::draw::*;
-use notan::math::Vec2;
+use notan::egui::{self, *};
 use notan::prelude::*;
 
 const MOVE_SPEED: f32 = 100.0;
@@ -11,15 +11,6 @@ struct State {
     y: f32,
     last_key: Option<KeyCode>,
     last_touch: Option<(f32, f32)>,
-}
-
-#[notan_main]
-fn main() -> Result<(), String> {
-    notan::init_with(setup)
-        .add_config(DrawConfig)
-        .update(update)
-        .draw(draw)
-        .build()
 }
 
 fn setup(gfx: &mut Graphics) -> State {
@@ -34,6 +25,22 @@ fn setup(gfx: &mut Graphics) -> State {
         last_key: None,
         last_touch: None,
     }
+}
+
+fn move_up(app: &mut App, state: &mut State) {
+    state.y -= MOVE_SPEED * app.timer.delta_f32();
+}
+
+fn move_left(app: &mut App, state: &mut State) {
+    state.x -= MOVE_SPEED * app.timer.delta_f32();
+}
+
+fn move_down(app: &mut App, state: &mut State) {
+    state.y += MOVE_SPEED * app.timer.delta_f32();
+}
+
+fn move_right(app: &mut App, state: &mut State) {
+    state.x += MOVE_SPEED * app.timer.delta_f32();
 }
 
 fn update(app: &mut App, state: &mut State) {
@@ -54,23 +61,53 @@ fn update(app: &mut App, state: &mut State) {
     }
 
     if app.keyboard.is_down(KeyCode::W) {
-        state.y -= MOVE_SPEED * app.timer.delta_f32();
+        move_up(app, state);
     }
 
     if app.keyboard.is_down(KeyCode::A) {
-        state.x -= MOVE_SPEED * app.timer.delta_f32();
+        move_left(app, state);
     }
 
     if app.keyboard.is_down(KeyCode::S) {
-        state.y += MOVE_SPEED * app.timer.delta_f32();
+        move_down(app, state);
     }
 
     if app.keyboard.is_down(KeyCode::D) {
-        state.x += MOVE_SPEED * app.timer.delta_f32();
+        move_right(app, state);
     }
 }
 
-fn draw(gfx: &mut Graphics, state: &mut State) {
+#[notan_main]
+fn main() -> Result<(), String> {
+    let win = WindowConfig::new().vsync(true).high_dpi(true);
+
+    notan::init_with(setup)
+        .add_config(win)
+        .add_config(EguiConfig)
+        .add_config(DrawConfig)
+        .update(update)
+        .draw(draw)
+        .build()
+}
+
+fn draw(app: &mut App, gfx: &mut Graphics, plugins: &mut Plugins, state: &mut State) {
+    let output = plugins.egui(|ctx| {
+        egui::SidePanel::left("side_panel").show(ctx, |ui| {
+            if ui.button("<").hovered() && app.mouse.left_is_down() {
+                move_left(app, state);
+            }
+            if ui.button(">").hovered() && app.mouse.left_is_down() {
+                move_right(app, state);
+            }
+            if ui.button("^").hovered() && app.mouse.left_is_down() {
+                move_up(app, state);
+            }
+            if ui.button("v").hovered() && app.mouse.left_is_down() {
+                move_down(app, state);
+            }
+        });
+    });
+
     let mut draw = gfx.create_draw();
     draw.clear(Color::BLACK);
 
@@ -79,7 +116,7 @@ fn draw(gfx: &mut Graphics, state: &mut State) {
         .color(Color::RED);
 
     draw.text(&state.font, "Use WASD to move the circle")
-        .position(10.0, 10.0)
+        .position(250.0, 10.0)
         .size(20.0);
 
     if let Some(key) = &state.last_key {
@@ -89,4 +126,7 @@ fn draw(gfx: &mut Graphics, state: &mut State) {
     }
 
     gfx.render(&draw);
+    // if output.needs_repaint() {
+    gfx.render(&output);
+    // }
 }
